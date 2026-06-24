@@ -196,6 +196,9 @@ async function getStreamContent(id: string, type: ContentType) {
 
   // get some metadata
   const { servers, title } = await serversLoad(embedResp);
+  console.log(
+    `[vidsrc] ${url} status=${embed.status} bytes=${embedResp.length} servers=${servers.length} blocked=${/just a moment|cf-chl|cloudflare|attention required/i.test(embedResp)}`
+  );
 
   const rcpFetchPromises = servers.map((element) => {
     return fetch(`${BASEDOM}/rcp/${element.dataHash}`, {
