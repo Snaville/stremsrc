@@ -115,15 +115,13 @@ async function serversLoad(
   const servers: Servers[] = [];
   const title = $("title").text() ?? "";
   const base = $("iframe").attr("src") ?? "";
-  BASEDOM =
-    new URL(base.startsWith("//") ? "https:" + base : base).origin ?? BASEDOM;
-  $(".serversList .server").each((index, element) => {
-    const server = $(element);
-    servers.push({
-      name: server.text().trim(),
-      dataHash: server.attr("data-hash") ?? null,
-    });
-  });
+  const iframeUrl = base.startsWith("//") ? "https:" + base : base;
+  BASEDOM = new URL(iframeUrl).origin ?? BASEDOM;
+  // ponytail: the .serversList markup is now HTML-commented out, so cheerio can't
+  // see it. The live player iframe (.../rcp/<hash>) IS the active server — use it.
+  // add when one source proves flaky: regex the commented data-hash list for fallbacks.
+  const rcpHash = iframeUrl.split("/rcp/")[1];
+  if (rcpHash) servers.push({ name: title, dataHash: rcpHash });
   return {
     servers: servers,
     title: title,
@@ -141,10 +139,12 @@ async function PRORCPhandler(prorcp: string): Promise<string | null> {
       return null;
     }
     const prorcpResponse = await prorcpFetch.text();
-    const regex = /file:\s*'([^']*)'/gm;
+    // stream appears as file:'...' (old) or file:"..." (new); new format may list
+    // several fallback URLs joined by " or " — take the first.
+    const regex = /file:\s*["']([^"']+)["']/;
     const match = regex.exec(prorcpResponse);
     if (match && match[1]) {
-      return match[1];
+      return match[1].split(" or ")[0].trim();
     }
     return null;
   } catch (error) {

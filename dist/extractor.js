@@ -134,16 +134,14 @@ function serversLoad(html) {
         const servers = [];
         const title = (_a = $("title").text()) !== null && _a !== void 0 ? _a : "";
         const base = (_b = $("iframe").attr("src")) !== null && _b !== void 0 ? _b : "";
-        BASEDOM =
-            (_c = new URL(base.startsWith("//") ? "https:" + base : base).origin) !== null && _c !== void 0 ? _c : BASEDOM;
-        $(".serversList .server").each((index, element) => {
-            var _a;
-            const server = $(element);
-            servers.push({
-                name: server.text().trim(),
-                dataHash: (_a = server.attr("data-hash")) !== null && _a !== void 0 ? _a : null,
-            });
-        });
+        const iframeUrl = base.startsWith("//") ? "https:" + base : base;
+        BASEDOM = (_c = new URL(iframeUrl).origin) !== null && _c !== void 0 ? _c : BASEDOM;
+        // ponytail: the .serversList markup is now HTML-commented out, so cheerio can't
+        // see it. The live player iframe (.../rcp/<hash>) IS the active server — use it.
+        // add when one source proves flaky: regex the commented data-hash list for fallbacks.
+        const rcpHash = iframeUrl.split("/rcp/")[1];
+        if (rcpHash)
+            servers.push({ name: title, dataHash: rcpHash });
         return {
             servers: servers,
             title: title,
@@ -160,10 +158,12 @@ function PRORCPhandler(prorcp) {
                 return null;
             }
             const prorcpResponse = yield prorcpFetch.text();
-            const regex = /file:\s*'([^']*)'/gm;
+            // stream appears as file:'...' (old) or file:"..." (new); new format may list
+            // several fallback URLs joined by " or " — take the first.
+            const regex = /file:\s*["']([^"']+)["']/;
             const match = regex.exec(prorcpResponse);
             if (match && match[1]) {
-                return match[1];
+                return match[1].split(" or ")[0].trim();
             }
             return null;
         }

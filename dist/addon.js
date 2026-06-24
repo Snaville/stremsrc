@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.addonFn = void 0;
 const stremio_addon_sdk_1 = require("stremio-addon-sdk");
 const extractor_1 = require("./extractor");
-const pstream_1 = require("./pstream");
 const manifest = {
     id: "xyz.theditor.stremsrc",
     version: "0.2.0",
@@ -26,28 +25,13 @@ const manifest = {
     ],
     types: ["movie", "series"],
     name: "stremsrc",
-    description: "A VidSRC + PStream extractor for stremio",
+    description: "A VidSRC extractor for stremio",
 };
 const builder = new stremio_addon_sdk_1.addonBuilder(manifest);
 const addonFn = (_a) => __awaiter(void 0, [_a], void 0, function* ({ type, id }) {
     try {
-        // Get streams from both extractors concurrently
-        const [vidsrcStreams, pStreamStreams] = yield Promise.allSettled([
-            (0, extractor_1.getStreamContent)(id, type),
-            (0, pstream_1.getStreamContent)(id, type),
-        ]);
-        const allStreams = [];
-        // Add VidSrc streams if successful
-        if (vidsrcStreams.status === "fulfilled" && vidsrcStreams.value) {
-            allStreams.push(...vidsrcStreams.value);
-        }
-        // Add P-Stream streams if successful
-        if (pStreamStreams.status === "fulfilled" && pStreamStreams.value) {
-            allStreams.push(...pStreamStreams.value);
-        }
-        return {
-            streams: allStreams,
-        };
+        const streams = yield (0, extractor_1.getStreamContent)(id, type);
+        return { streams: streams !== null && streams !== void 0 ? streams : [] };
     }
     catch (error) {
         console.error("Stream extraction failed:", error);
