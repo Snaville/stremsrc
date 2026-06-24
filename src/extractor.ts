@@ -137,6 +137,9 @@ async function PRORCPhandler(prorcp: string): Promise<string | null> {
     });
     const prorcpResponse = await prorcpFetch.text();
     console.log(`[vidsrc] prorcp status=${prorcpFetch.status} bytes=${prorcpResponse.length} hasFile=${/file:\s*["']/.test(prorcpResponse)}`);
+    if (!/file:\s*["']/.test(prorcpResponse)) {
+      console.log(`[vidsrc] prorcp-body-snippet: ${prorcpResponse.replace(/\s+/g, " ").slice(0, 600)}`);
+    }
     if (!prorcpFetch.ok) {
       return null;
     }
