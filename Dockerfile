@@ -21,5 +21,5 @@ RUN pnpm run build
 ENV PORT=56245
 ENV CHROME_PATH=/usr/bin/google-chrome-stable
 EXPOSE 56245
-# headful Chrome under a virtual display
-CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x720x24", "node", "dist/index.js"]
+# headful Chrome under a virtual display (Xvfb started by entrypoint)
+CMD ["sh", "/app/entrypoint.sh"]
