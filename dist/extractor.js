@@ -158,10 +158,11 @@ function PRORCPhandler(prorcp) {
             const prorcpFetch = yield fetch(`${BASEDOM}/prorcp/${prorcp}`, {
                 headers: Object.assign({}, getRandomizedHeaders()),
             });
+            const prorcpResponse = yield prorcpFetch.text();
+            console.log(`[vidsrc] prorcp status=${prorcpFetch.status} bytes=${prorcpResponse.length} hasFile=${/file:\s*["']/.test(prorcpResponse)}`);
             if (!prorcpFetch.ok) {
                 return null;
             }
-            const prorcpResponse = yield prorcpFetch.text();
             // stream appears as file:'...' (old) or file:"..." (new); new format may list
             // several fallback URLs joined by " or " — take the first.
             const regex = /file:\s*["']([^"']+)["']/;
@@ -220,14 +221,19 @@ function getStreamContent(id, type) {
         const embedResp = yield embed.text();
         // get some metadata
         const { servers, title } = yield serversLoad(embedResp);
+        console.log(`[vidsrc] embed status=${embed.status} bytes=${embedResp.length} servers=${servers.length} base=${BASEDOM}`);
         const rcpFetchPromises = servers.map((element) => {
             return fetch(`${BASEDOM}/rcp/${element.dataHash}`, {
                 headers: Object.assign(Object.assign({}, getRandomizedHeaders()), { "Sec-Fetch-Dest": "" }),
             });
         });
         const rcpResponses = yield Promise.all(rcpFetchPromises);
+        console.log(`[vidsrc] rcp statuses=${rcpResponses.map((r) => r.status).join(",")}`);
         const prosrcrcp = yield Promise.all(rcpResponses.map((response, i) => __awaiter(this, void 0, void 0, function* () {
-            return rcpGrabber(yield response.text());
+            const txt = yield response.text();
+            const g = yield rcpGrabber(txt);
+            console.log(`[vidsrc] rcp[${i}] bytes=${txt.length} grab=${g ? g.data.substring(0, 10) : "null"}`);
+            return g;
         })));
         const apiResponse = [];
         for (const item of prosrcrcp) {
