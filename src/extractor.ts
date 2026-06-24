@@ -7,6 +7,7 @@ import { ContentType, Stream } from "stremio-addon-sdk";
 import * as cheerio from "cheerio";
 import { fetchAndParseHLS, ParsedHLSStream } from "./hls-utils";
 import { SOURCE_URL } from "./constants";
+import { resolveProrcp } from "./browser";
 
 let BASEDOM = "https://cloudnestra.com";
 
@@ -136,25 +137,11 @@ async function serversLoad(
 
 async function PRORCPhandler(prorcp: string): Promise<string | null> {
   try {
-    const prorcpFetch = await fetch(`${BASEDOM}/prorcp/${prorcp}`, {
-      headers: {
-        ...getRandomizedHeaders(),
-      },
-    });
-    const prorcpResponse = await prorcpFetch.text();
-    console.log(`[vidsrc] prorcp status=${prorcpFetch.status} bytes=${prorcpResponse.length} hasFile=${/file:\s*["']/.test(prorcpResponse)}`);
-    if (!prorcpFetch.ok) {
-      return null;
-    }
-    // stream appears as file:'...' (old) or file:"..." (new); new format may list
-    // several fallback URLs joined by " or " — take the first.
-    const regex = /file:\s*["']([^"']+)["']/;
-    const match = regex.exec(prorcpResponse);
-    if (match && match[1]) {
-      return match[1].split(" or ")[0].trim();
-    }
-    return null;
+    // prorcp is gated by an invisible Cloudflare Turnstile that a plain fetch
+    // cannot pass — resolve it in real Chrome (see browser.ts).
+    return await resolveProrcp(`${BASEDOM}/prorcp/${prorcp}`, BASEDOM);
   } catch (error) {
+    console.log(`[vidsrc] prorcp resolve failed: ${(error as Error).message}`);
     return null;
   }
 }
@@ -203,7 +190,6 @@ async function getStreamContent(id: string, type: ContentType) {
 
   // get some metadata
   const { servers, title } = await serversLoad(embedResp);
-  console.log(`[vidsrc] embed status=${embed.status} bytes=${embedResp.length} servers=${servers.length} base=${BASEDOM}`);
 
   const rcpFetchPromises = servers.map((element) => {
     return fetch(`${BASEDOM}/rcp/${element.dataHash}`, {
@@ -214,14 +200,10 @@ async function getStreamContent(id: string, type: ContentType) {
     });
   });
   const rcpResponses = await Promise.all(rcpFetchPromises);
-  console.log(`[vidsrc] rcp statuses=${rcpResponses.map((r) => r.status).join(",")}`);
 
   const prosrcrcp = await Promise.all(
     rcpResponses.map(async (response, i) => {
-      const txt = await response.text();
-      const g = await rcpGrabber(txt);
-      console.log(`[vidsrc] rcp[${i}] bytes=${txt.length} grab=${g ? g.data.substring(0, 10) : "null"}`);
-      return g;
+      return rcpGrabber(await response.text());
     })
   );
 

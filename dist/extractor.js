@@ -51,6 +51,7 @@ exports.getStreamContent = getStreamContent;
 const cheerio = __importStar(require("cheerio"));
 const hls_utils_1 = require("./hls-utils");
 const constants_1 = require("./constants");
+const browser_1 = require("./browser");
 let BASEDOM = "https://cloudnestra.com";
 // Array of realistic user agents to rotate through
 const USER_AGENTS = [
@@ -155,24 +156,12 @@ function serversLoad(html) {
 function PRORCPhandler(prorcp) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const prorcpFetch = yield fetch(`${BASEDOM}/prorcp/${prorcp}`, {
-                headers: Object.assign({}, getRandomizedHeaders()),
-            });
-            const prorcpResponse = yield prorcpFetch.text();
-            console.log(`[vidsrc] prorcp status=${prorcpFetch.status} bytes=${prorcpResponse.length} hasFile=${/file:\s*["']/.test(prorcpResponse)}`);
-            if (!prorcpFetch.ok) {
-                return null;
-            }
-            // stream appears as file:'...' (old) or file:"..." (new); new format may list
-            // several fallback URLs joined by " or " — take the first.
-            const regex = /file:\s*["']([^"']+)["']/;
-            const match = regex.exec(prorcpResponse);
-            if (match && match[1]) {
-                return match[1].split(" or ")[0].trim();
-            }
-            return null;
+            // prorcp is gated by an invisible Cloudflare Turnstile that a plain fetch
+            // cannot pass — resolve it in real Chrome (see browser.ts).
+            return yield (0, browser_1.resolveProrcp)(`${BASEDOM}/prorcp/${prorcp}`, BASEDOM);
         }
         catch (error) {
+            console.log(`[vidsrc] prorcp resolve failed: ${error.message}`);
             return null;
         }
     });
@@ -221,19 +210,14 @@ function getStreamContent(id, type) {
         const embedResp = yield embed.text();
         // get some metadata
         const { servers, title } = yield serversLoad(embedResp);
-        console.log(`[vidsrc] embed status=${embed.status} bytes=${embedResp.length} servers=${servers.length} base=${BASEDOM}`);
         const rcpFetchPromises = servers.map((element) => {
             return fetch(`${BASEDOM}/rcp/${element.dataHash}`, {
                 headers: Object.assign(Object.assign({}, getRandomizedHeaders()), { "Sec-Fetch-Dest": "" }),
             });
         });
         const rcpResponses = yield Promise.all(rcpFetchPromises);
-        console.log(`[vidsrc] rcp statuses=${rcpResponses.map((r) => r.status).join(",")}`);
         const prosrcrcp = yield Promise.all(rcpResponses.map((response, i) => __awaiter(this, void 0, void 0, function* () {
-            const txt = yield response.text();
-            const g = yield rcpGrabber(txt);
-            console.log(`[vidsrc] rcp[${i}] bytes=${txt.length} grab=${g ? g.data.substring(0, 10) : "null"}`);
-            return g;
+            return rcpGrabber(yield response.text());
         })));
         const apiResponse = [];
         for (const item of prosrcrcp) {
