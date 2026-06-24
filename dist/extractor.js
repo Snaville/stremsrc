@@ -134,6 +134,10 @@ function serversLoad(html) {
         const servers = [];
         const title = (_a = $("title").text()) !== null && _a !== void 0 ? _a : "";
         const base = (_b = $("iframe").attr("src")) !== null && _b !== void 0 ? _b : "";
+        if (!base) {
+            console.log(`[vidsrc] no iframe in embed (bytes=${html.length} blocked=${/just a moment|attention required|cf-chl|enable javascript/i.test(html)})`);
+            return { servers, title };
+        }
         const iframeUrl = base.startsWith("//") ? "https:" + base : base;
         BASEDOM = (_c = new URL(iframeUrl).origin) !== null && _c !== void 0 ? _c : BASEDOM;
         // ponytail: the .serversList markup is now HTML-commented out, so cheerio can't

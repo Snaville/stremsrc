@@ -115,6 +115,12 @@ async function serversLoad(
   const servers: Servers[] = [];
   const title = $("title").text() ?? "";
   const base = $("iframe").attr("src") ?? "";
+  if (!base) {
+    console.log(
+      `[vidsrc] no iframe in embed (bytes=${html.length} blocked=${/just a moment|attention required|cf-chl|enable javascript/i.test(html)})`
+    );
+    return { servers, title };
+  }
   const iframeUrl = base.startsWith("//") ? "https:" + base : base;
   BASEDOM = new URL(iframeUrl).origin ?? BASEDOM;
   // ponytail: the .serversList markup is now HTML-commented out, so cheerio can't

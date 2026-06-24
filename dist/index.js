@@ -17,14 +17,16 @@ if (socks) {
     (0, undici_1.setGlobalDispatcher)((0, fetch_socks_1.socksDispatcher)({ type: 5, host: u.hostname, port: Number(u.port) }));
     globalThis.fetch = undici_1.fetch;
     console.log(`[stremsrc] routing upstream fetch via ${socks}`);
-    // one-shot egress check: prints exit IP + whether WARP is active
-    (0, undici_1.fetch)("https://www.cloudflare.com/cdn-cgi/trace")
-        .then((r) => r.text())
-        .then((t) => {
-        var _a, _b;
-        return console.log(`[stremsrc] egress ${(_a = t.match(/ip=.*/)) === null || _a === void 0 ? void 0 : _a[0]} ${(_b = t.match(/warp=.*/)) === null || _b === void 0 ? void 0 : _b[0]}`);
-    })
-        .catch((e) => console.log(`[stremsrc] egress check failed: ${e.message}`));
+    // egress check after WARP has time to register: prints exit IP + warp status
+    setTimeout(() => {
+        (0, undici_1.fetch)("https://www.cloudflare.com/cdn-cgi/trace")
+            .then((r) => r.text())
+            .then((t) => {
+            var _a, _b;
+            return console.log(`[stremsrc] egress ${(_a = t.match(/ip=.*/)) === null || _a === void 0 ? void 0 : _a[0]} ${(_b = t.match(/warp=.*/)) === null || _b === void 0 ? void 0 : _b[0]}`);
+        })
+            .catch((e) => console.log(`[stremsrc] egress check failed: ${e.message}`));
+    }, 20000);
 }
 (0, stremio_addon_sdk_1.serveHTTP)(addon_1.default, { port: parseInt(process.env.PORT || "56245") });
 // when you've deployed your addon, un-comment this line

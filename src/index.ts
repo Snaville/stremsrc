@@ -16,15 +16,17 @@ if (socks) {
   );
   (globalThis as any).fetch = undiciFetch;
   console.log(`[stremsrc] routing upstream fetch via ${socks}`);
-  // one-shot egress check: prints exit IP + whether WARP is active
-  undiciFetch("https://www.cloudflare.com/cdn-cgi/trace")
-    .then((r) => r.text())
-    .then((t) =>
-      console.log(
-        `[stremsrc] egress ${t.match(/ip=.*/)?.[0]} ${t.match(/warp=.*/)?.[0]}`
+  // egress check after WARP has time to register: prints exit IP + warp status
+  setTimeout(() => {
+    undiciFetch("https://www.cloudflare.com/cdn-cgi/trace")
+      .then((r) => r.text())
+      .then((t) =>
+        console.log(
+          `[stremsrc] egress ${t.match(/ip=.*/)?.[0]} ${t.match(/warp=.*/)?.[0]}`
+        )
       )
-    )
-    .catch((e) => console.log(`[stremsrc] egress check failed: ${e.message}`));
+      .catch((e) => console.log(`[stremsrc] egress check failed: ${e.message}`));
+  }, 20000);
 }
 
 serveHTTP(addonInterface, { port: parseInt(process.env.PORT || "56245") });
