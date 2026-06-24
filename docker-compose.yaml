@@ -1,0 +1,26 @@
+services:
+  warp:
+    image: caomingjun/warp
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    volumes:
+      - warpdata:/var/lib/cloudflare-warp
+
+  stremsrc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "56245"
+    environment:
+      - PORT=56245
+      - SOCKS_PROXY=socks5://warp:1080
+    depends_on:
+      - warp
+
+volumes:
+  warpdata:
