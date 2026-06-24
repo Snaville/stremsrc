@@ -1,13 +1,19 @@
 services:
-  warp:
-    image: caomingjun/warp
+  # Tailscale sidecar (userspace) — joins the tailnet, routes outbound through the
+  # home exit node, and exposes a local SOCKS5 proxy on :1055. Only stremsrc uses it,
+  # so only the scraping traffic exits via the home residential IP.
+  ts:
+    image: tailscale/tailscale:latest
     restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
+    hostname: stremsrc-coolify
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_USERSPACE=true
+      - TS_SOCKS5_SERVER=:1055
+      - TS_EXTRA_ARGS=--exit-node=${TS_EXIT_NODE} --exit-node-allow-lan-access
+      - TS_STATE_DIR=/var/lib/tailscale
     volumes:
-      - warpdata:/var/lib/cloudflare-warp
+      - tsdata:/var/lib/tailscale
 
   stremsrc:
     build:
@@ -18,9 +24,9 @@ services:
       - "56245"
     environment:
       - PORT=56245
-      - SOCKS_PROXY=socks5://warp:1080
+      - SOCKS_PROXY=socks5://ts:1055
     depends_on:
-      - warp
+      - ts
 
 volumes:
-  warpdata:
+  tsdata:
