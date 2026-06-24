@@ -236,62 +236,29 @@ async function getStreamContent(id: string, type: ContentType) {
 
   if (!res) return [];
 
+  // The CDN serves valid HLS that needs no special headers (segments load without
+  // a Referer), so return plain web-ready URLs. notWebReady/proxyHeaders broke
+  // playback (web spun forever, TV refused). ponytail: add a content-type-fixing
+  // proxy only if a player rejects the text/html segment mime.
   let streams: Stream[] = [];
   for (const st of res) {
     if (st.stream == null) continue;
 
-    // If we have HLS data with multiple qualities, create separate streams
     if (st.hlsData && st.hlsData.qualities.length > 0) {
-      // Add the master playlist as "Auto Quality"
       streams.push({
-        title: `${st.name ?? "Unknown"} - VidSRC/Cloudnestra Auto Quality`,
+        title: `${st.name ?? "Unknown"} - VidSRC Auto`,
         url: st.stream,
-        behaviorHints: {
-          // @ts-ignore
-          proxyHeaders: {
-            request: {
-              "Sec-Fetch-Dest": "iframe",
-              Referer: `${BASEDOM}/`,
-            },
-          },
-          notWebReady: true,
-        },
       });
-
-      // Add individual quality streams
       for (const quality of st.hlsData.qualities) {
         streams.push({
-          title: `${st.name ?? "Unknown"} - VidSRC/Cloudnestra ${
-            quality.title
-          }`,
+          title: `${st.name ?? "Unknown"} - VidSRC ${quality.title}`,
           url: quality.url,
-          behaviorHints: {
-            // @ts-ignore
-            proxyHeaders: {
-              request: {
-                "Sec-Fetch-Dest": "iframe",
-                Referer: `${BASEDOM}/`,
-              },
-            },
-            notWebReady: true,
-          },
         });
       }
     } else {
-      // Fallback to original behavior if no HLS data
       streams.push({
-        title: `${st.name ?? "Unknown"} - VidSRC/Cloudnestra`,
+        title: `${st.name ?? "Unknown"} - VidSRC`,
         url: st.stream,
-        behaviorHints: {
-          // @ts-ignore
-          proxyHeaders: {
-            request: {
-              "Sec-Fetch-Dest": "iframe",
-              Referer: `${BASEDOM}/`,
-            },
-          },
-          notWebReady: true,
-        },
       });
     }
   }
