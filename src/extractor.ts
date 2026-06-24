@@ -135,10 +135,11 @@ async function PRORCPhandler(prorcp: string): Promise<string | null> {
         ...getRandomizedHeaders(),
       },
     });
+    const prorcpResponse = await prorcpFetch.text();
+    console.log(`[vidsrc] prorcp status=${prorcpFetch.status} bytes=${prorcpResponse.length} hasFile=${/file:\s*["']/.test(prorcpResponse)}`);
     if (!prorcpFetch.ok) {
       return null;
     }
-    const prorcpResponse = await prorcpFetch.text();
     // stream appears as file:'...' (old) or file:"..." (new); new format may list
     // several fallback URLs joined by " or " — take the first.
     const regex = /file:\s*["']([^"']+)["']/;
@@ -209,10 +210,14 @@ async function getStreamContent(id: string, type: ContentType) {
     });
   });
   const rcpResponses = await Promise.all(rcpFetchPromises);
+  console.log(`[vidsrc] rcp statuses=${rcpResponses.map((r) => r.status).join(",")} base=${BASEDOM}`);
 
   const prosrcrcp = await Promise.all(
     rcpResponses.map(async (response, i) => {
-      return rcpGrabber(await response.text());
+      const txt = await response.text();
+      const g = await rcpGrabber(txt);
+      console.log(`[vidsrc] rcp[${i}] bytes=${txt.length} grab=${g ? g.data.substring(0, 10) : "null"}`);
+      return g;
     })
   );
 
